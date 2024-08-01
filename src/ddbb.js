@@ -14,19 +14,19 @@ function generarContrasena(contrasena) {
 }
 
 var conexion = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: 'krono',
-  database: 'nutrikal',
+  host: "localhost",
+  user: "root",
+  password: "krono",
+  database: "nutrikal",
 });
 
 conexion.connect(function (err) {
   if (err) {
-    console.error('Error conectando a la base de datos:', err.stack);
+    console.error("Error conectando a la base de datos:", err.stack);
     return;
   }
-  console.log('Conectado a la base de datos');
-})
+  console.log("Conectado a la base de datos");
+});
 
 function consultarUsuarios() {
   // Conectar a la base de datos
@@ -34,36 +34,30 @@ function consultarUsuarios() {
   conexion.query(usuario, function (err, result) {
     if (err) {
       throw err;
-    };
+    }
 
     console.log(result);
-  })
-
+  });
 }
 
 function consultarMedidas() {
   const medida = "SELECT * FROM medida";
   conexion.query(medida, function (err, result) {
     if (err) {
-      throw err
-    };
+      throw err;
+    }
 
     console.log(result);
-  })
-
+  });
 }
 
-
-
 // INSERT INTO `nutrikal`.`medida` (`id_usuario`, `altura`, `peso`, `objetivo`) VALUES ('2', '180', '147', 'bajar');
-
-
 
 async function consultaUsuarios(usuario, contrasena) {
   var sql = "SELECT * FROM usuario WHERE name = ? LIMIT 1";
 
   return new Promise((success, reject) => {
-    const result = con.query(sql, [usuario], function (err, result) {
+    const result = conexion.query(sql, [usuario], function (err, result) {
       if (err) {
         reject(err);
       }
@@ -76,15 +70,59 @@ async function consultaUsuarios(usuario, contrasena) {
             if (comparation) {
               return success(usuario);
             } else {
-              reject("contraseña invalida");
+              reject({ error: true, message: "contraseña invalida" });
             }
           }
         );
       } else {
-        reject("el usuarion no existe");
+        reject({ error: true, message: "el usuarion no existe" });
       }
     });
   });
 }
 
-module.exports = { consultaUsuarios, consultarUsuarios, consultarMedidas };
+function crearUsuarios(usuario, contrasena) {
+  var sql = "SELECT * FROM usuario WHERE name = ? LIMIT 1";
+
+  return new Promise((success, reject) => {
+    const result = conexion.query(sql, [usuario], async function (err, result) {
+      if (err) {
+        reject(err);
+      } else {
+        if (result.length) {
+          reject({ error: true, message: "el usuario ya existe" });
+        } else {
+          const numSaltRounds = 10; // Número de rondas de sal (ajústalo según tus necesidades)
+          bcrypt.hash(contrasena, numSaltRounds, (err, password) => {
+            if (err) {
+              console.error("Error al generar el hash:", err);
+            } else {
+              success({ usuario, password });
+
+              const sqlUsuario =
+                "INSERT INTO usuario (name, password, salt, hash) VALUES (?, ?, '', '')";
+              conexion.query(
+                sqlUsuario,
+                [usuario, password],
+                function (err, result) {
+                  if (err) {
+                    reject(err);
+                  } else {
+                    success({ user: usuario, password: password });
+                  }
+                }
+              );
+            }
+          });
+        }
+      }
+    });
+  });
+}
+
+module.exports = {
+  consultaUsuarios,
+  consultarUsuarios,
+  consultarMedidas,
+  crearUsuarios,
+};
